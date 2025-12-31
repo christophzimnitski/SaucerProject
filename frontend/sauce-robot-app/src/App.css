@@ -1,0 +1,325 @@
+/* src/App.css — FINAL VERSION: PERFECT EDIT PANEL + SCROLLING */
+.App {
+    text-align: center;
+    background: #0f0f0f;
+    color: #fff;
+    min-height: 100vh;
+    padding: 2rem;
+    font-family: 'Courier New', monospace;
+}
+
+.header h1 {
+    font-size: 4rem;
+    margin: 0;
+    background: linear-gradient(90deg, #ff0066, #ffbe0b);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.header p {
+    font-size: 1.5rem;
+    color: #ff0066;
+}
+
+.recipes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2rem;
+    margin-top: 3rem;
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.recipe-card {
+    background: #1a1a1a;
+    border: 2px solid #333;
+    border-radius: 16px;
+    padding: 2rem;
+    transition: all 0.3s;
+    position: relative;
+    height: 500px;
+    display: flex;
+    flex-direction: column;
+}
+
+.recipe-card:hover {
+    border-color: #ff0066;
+    transform: translateY(-10px);
+    box-shadow: 0 20px 40px rgba(255, 0, 110, 0.3);
+}
+
+.recipe-card h2 {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+    color: #ffbe0b;
+}
+
+.ingredients {
+    text-align: left;
+    font-size: 1.1rem;
+    line-height: 1.8;
+    flex: 1;
+    overflow-y: auto;
+    margin-top: 2rem;
+}
+
+.make-sauce-button {
+    margin-top: 0.5rem;
+    padding: 1.5rem 3rem;
+    font-size: 1.8rem;
+    font-weight: bold;
+    background: #ff0066;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s;
+    width: 100%;
+}
+
+.make-sauce-button:hover {
+    background: #ff0066;
+    transform: scale(1.1);
+    box-shadow: 0 0 30px #ff0066;
+}
+
+.make-sauce-button.making {
+    background: #330066;
+    animation: pulse 1.5s infinite;
+}
+
+.loading {
+    font-size: 3rem;
+    margin-top: 20vh;
+    color: #ff0066;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 #330066; }
+    70% { box-shadow: 0 0 0 20px rgba(0, 255, 157, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(0, 255, 157, 0); }
+}
+
+/* Editable title styles */
+.title-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.title-bar h2 {
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 88%;
+    padding-right: 0.5rem;
+}
+
+.edit-pencil {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.4rem;
+    opacity: 0.5;
+    transition: all 0.2s;
+}
+
+.edit-pencil:hover {
+    opacity: 1;
+    transform: scale(1.2);
+    color: #ffbe0b;
+}
+
+.edit-input {
+    flex: 1;
+    padding: 0.5rem;
+    font-size: 1.6rem;
+    background: #333;
+    border: 2px solid #ff0066;
+    color: white;
+    border-radius: 8px;
+}
+
+.title-bar button {
+    background: none;
+    border: 1px solid #555;
+    color: #aaa;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.title-bar button:hover {
+    background: #ff0066;
+    color: white;
+    border-color: #ff0066;
+}
+
+.add-card {
+    background: linear-gradient(135deg, #1a0033, #330066);
+    cursor: pointer;
+    border: 3px dashed #ff0066;
+    transition: all 0.3s ease;
+}
+
+.add-card:hover {
+    background: linear-gradient(135deg, #330066, #660033);
+    transform: scale(1.02);
+}
+
+.add-placeholder {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #ff0066;
+}
+
+.plus-icon {
+    font-size: 6rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+/* EDIT/ADD OVERLAY — SAME SIZE AS CARD + SCROLLS WHEN NEEDED */
+.edit-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(26, 26, 26, 0.98);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    box-sizing: border-box;
+    z-index: 10;
+}
+
+.edit-panel {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.edit-panel h2 {
+    margin: 0.5rem;
+    font-size: 1.8rem;
+    color: #ffbe0b;
+    text-align: center;
+}
+
+.add-title-input {
+    width: 94.5%;
+    padding: 0.5rem;
+    font-size: 1.6rem;
+    background: #333;
+    border: 2px solid #ff0066;
+    color: white;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.add-ingredients-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    overflow: hidden;
+}
+
+.ingredient-input-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.ingredient-input-row input {
+    flex: 1;
+    padding: 0.6rem;
+    background: rgba(0,0,0,0.5);
+    border: 2px solid #ff0066;
+    color: white;
+    border-radius: 8px;
+}
+
+.add-ingredient-btn {
+    padding: 0 1rem;
+    background: #ff0066;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.added-ingredients {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    max-height: 250px;
+}
+
+.added-ingredient-chip {
+    background: #ff0066;
+    color: white;
+    padding: 0.8rem;
+    max-height: 1rem;
+    border-radius: 20px;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.remove-ingredient {
+    background: none;
+    border: none;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.add-form-buttons {
+    display: flex;
+    gap: 1rem;
+}
+
+.save-new-recipe {
+    flex: 0.9;
+    padding: 1rem;
+    background: #330066;
+    color: white;
+    font-weight: bold;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.cancel-button {
+    background: #ff0066;
+    color: white;
+    flex: 0.1;
+    padding: 1rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
