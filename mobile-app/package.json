@@ -1,0 +1,39 @@
+{
+  "name": "sauce-robot-mobile",
+  "version": "1.0.0",
+  "description": "Sauce Robot - Mobile App for Robots (iOS)",
+  "main": "index.js",
+  "scripts": {
+    "start": "react-native start",
+    "ios": "react-native run-ios",
+    "build-server": "cd ../backend && mvn clean package -DskipTests",
+    "copy-server-ios": "cp ../backend/target/*.jar ios/SauceRobotMobile/server.jar",
+    "build-ipa": "cd ios && xcodebuild -workspace SauceRobotMobile.xcworkspace -scheme SauceRobotMobile -configuration Release -archivePath build/SauceRobotMobile.xcarchive archive",
+    "deploy-robot": "npm run build-server && npm run copy-server-ios && npm run build-ipa"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^1.19.5",
+    "react": "18.2.0",
+    "react-native": "0.72.6",
+    "react-native-fs": "^2.20.0",
+    "react-native-webview": "^13.6.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@babel/preset-env": "^7.20.0",
+    "@babel/runtime": "^7.20.0",
+    "@react-native/babel-preset": "^0.73.21",
+    "@react-native/eslint-config": "^0.73.2",
+    "@react-native/metro-config": "^0.73.5",
+    "@react-native/typescript-config": "^0.73.1",
+    "babel-jest": "^29.6.3",
+    "eslint": "^8.19.0",
+    "jest": "^29.6.3",
+    "metro-react-native-babel-preset": "^0.76.8",
+    "react-test-renderer": "18.2.0",
+    "typescript": "^5.0.4"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

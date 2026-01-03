@@ -11,7 +11,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/recipes")
-@CrossOrigin(origins = {"http://localhost:3000", "http://192.168.1.220:3000" })  // allows your React app
+@CrossOrigin(origins = {"http://localhost:3000", "http://192.168.1.220:3000", "*" })  // allows your React app and any origin for mobile testing
 public class RecipeController {
 
     @Autowired
@@ -46,7 +46,7 @@ public class RecipeController {
 
     @PostMapping("/start-sauce/{id}")
     public ResponseEntity<String> startSauce(@PathVariable Long id) {
-        String message = recipeService.getRecipeNameById(id) + " IS BEING MADE...";
+        String message = recipeService.getRecipeNameById(id) + " is being made...";
         return ResponseEntity.ok(message);
     }
 

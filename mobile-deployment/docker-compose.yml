@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  sauce-robot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      # Persist H2 database data
+      - ../data:/app/data
+      # Optional: Mount logs for debugging
+      - ../logs:/app/logs
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SERVER_PORT=8080
+      # Configure H2 to allow connections from any host
+      - SPRING_DATASOURCE_URL=jdbc:h2:file:/app/data/saucerobot;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/recipes"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

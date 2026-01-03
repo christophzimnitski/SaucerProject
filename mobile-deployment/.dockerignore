@@ -1,0 +1,33 @@
+# Node modules
+frontend/node_modules/
+frontend/build/
+
+# Maven
+backend/target/
+backend/.mvn/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+
+# Database files (will be mounted as volume)
+data/
+
+# Logs
+logs/
+
+# Archive
+Archive.zip

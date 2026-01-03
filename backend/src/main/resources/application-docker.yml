@@ -1,0 +1,35 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:h2:file:/app/data/saucerobot;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    defer-datasource-initialization: true
+    hibernate:
+      ddl-auto: none
+    show-sql: false  # Disable in production
+    properties:
+      hibernate:
+        '[format_sql]': false
+
+  sql:
+    init:
+      mode: always
+
+# Allow serving static files
+spring:
+  web:
+    resources:
+      static-locations: classpath:/static/
+
+logging:
+  level:
+    com.saucerobot: INFO
+    org.springframework.web: INFO
+    org.hibernate: WARN

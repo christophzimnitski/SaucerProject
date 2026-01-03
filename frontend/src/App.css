@@ -282,6 +282,7 @@
     max-height: 1rem;
     border-radius: 20px;
     font-size: 0.95rem;
+    font-family: "SF Pro", -apple-system, BlinkMacSystemFont, sans-serif;
     display: flex;
     align-items: center;
     gap: 0.5rem;
