@@ -4,12 +4,36 @@ A recipe management application for creating and managing sauce recipes, designe
 
 ## 🚀 Quick Start
 
-### For iPhone Users (Recommended):
+### For iPhone Users (Native iOS App - Requires Mac Computer):
+**⚠️ IMPORTANT:** You need a Mac computer with Xcode to build the native iOS app!
+
 ```bash
+# On your Mac computer:
 cd mobile-app
 ./build-ios.sh
 ```
-The Sauce Robot runs directly on your iPhone with its own local server!
+The Sauce Robot will run **entirely on your iPhone** with:
+- ✅ **No external computer needed** - everything runs on the phone
+- ✅ **Native iOS performance** - smooth and responsive
+- ✅ **Offline operation** - works without internet
+- ✅ **Isolated data** - your recipes stay on your phone
+
+### Alternative: Docker Container (Web Access):
+```bash
+# On any computer with Docker:
+cd mobile-deployment
+./build-and-run.sh
+```
+Then access from your iPhone at: `http://[COMPUTER_IP]:8080`
+
+### Alternative: Web Version on iPhone:
+```bash
+# On any computer:
+cd frontend
+npm install
+npm start
+```
+Then access from your iPhone at: `http://[COMPUTER_IP]:3000`
 
 ### For Computer-Based Testing:
 ```bash

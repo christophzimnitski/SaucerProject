@@ -4,19 +4,19 @@ This guide shows you how to package and deploy your Sauce Robot application for 
 
 ## 🎯 Quick Start (Recommended)
 
-### For iPhone/iPad Users:
+### For iPhone Users (Immediate - Use This!):
+```bash
+# Run this on any computer with Docker
+./build-and-run.sh
+```
+Then open Safari on your iPhone and go to: `http://[COMPUTER_IP]:8080`
+
+### For Native iOS App (Requires Mac + Xcode):
 ```bash
 cd ../mobile-app
 ./build-ios.sh
 ```
-Then the Sauce Robot runs directly on your iPhone with its own server!
-
-### For Computer-Based Testing:
-```bash
-# Build and run in one command
-./build-and-run.sh
-```
-Then access from your phone at: `http://[YOUR_COMPUTER_IP]:8080`
+Then the Sauce Robot runs as a native app on your iPhone!
 
 ---
 
@@ -24,28 +24,30 @@ Then access from your phone at: `http://[YOUR_COMPUTER_IP]:8080`
 
 ### 1. 📱 iOS Mobile App (Best for iPhone - Runs Locally)
 
-**What it does:** Native iOS app that embeds the entire Sauce Robot system, running the Spring Boot server directly on your iPhone.
+**What it does:** Native iOS app with embedded HTTP server and SQLite database - everything runs on your iPhone!
 
 **Pros:**
-- ✅ **Truly portable** - No external computer needed
-- ✅ **Always available** - Runs on your phone's IP address
-- ✅ **Isolated database** - Each phone gets its own data
-- ✅ **Offline capable** - Works without internet once loaded
+- ✅ **100% self-contained** - No external computer EVER needed
+- ✅ **Native iOS performance** - Fast and smooth
+- ✅ **Offline operation** - Works without any network
+- ✅ **Isolated data** - Each phone has its own recipes
 - ✅ **Perfect for robots** - Can be deployed to thousands of devices
+
+**Cons:**
+- 📱 Requires Mac computer with Xcode to build the app
 
 **Setup:**
 ```bash
+# Requires Mac with Xcode:
 cd ../mobile-app
 ./build-ios.sh
 ```
 
-**Access:** The app automatically serves at your phone's local IP address.
+**Result:** Complete Sauce Robot system running entirely on your iPhone!
 
 ---
 
-### 2. 🐳 Docker Container (Computer-Based)
-
-**What it does:** Packages your entire app (frontend + backend + database) into a single container that runs anywhere Docker is installed.
+### 2. 🐳 Docker Container (Works on iPhone Immediately!)
 
 **What it does:** Packages your entire app (frontend + backend + database) into a single container that runs anywhere Docker is installed.
 

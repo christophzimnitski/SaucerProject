@@ -39,10 +39,45 @@ sleep 10
 # Check if the application is running
 if curl -f http://localhost:8080/api/recipes &>/dev/null; then
     echo "✅ Sauce Robot is running!"
-    echo "🌐 Access from your phone using your computer's IP address on port 8080"
     echo ""
-    echo "To stop: docker-compose down"
-    echo "To view logs: docker-compose logs -f"
+    echo "📱📱📱 ACCESS FROM YOUR IPHONE 📱📱📱"
+    echo "=========================================="
+
+    # Detect OS and show IP
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        WIFI_IP=$(ifconfig en0 2>/dev/null | grep inet | grep -v inet6 | awk '{print $2}')
+        if [ ! -z "$WIFI_IP" ]; then
+            echo "🍎 macOS WiFi IP (iPhone on same network):"
+            echo "   🔗 http://$WIFI_IP:8080"
+            echo ""
+        fi
+    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]]; then
+        # Windows
+        echo "🪟 Windows detected - run 'ipconfig' to find your IP"
+        echo "   Look for wireless adapter (192.168.x.x)"
+        echo "   Then visit: http://[YOUR_IP]:8080"
+        echo ""
+    else
+        # Linux
+        LINUX_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+        if [ ! -z "$LINUX_IP" ]; then
+            echo "🐧 Linux IP:"
+            echo "   🔗 http://$LINUX_IP:8080"
+            echo ""
+        fi
+    fi
+
+    echo "📋 How to access:"
+    echo "   1. Copy the URL above"
+    echo "   2. Open Safari on your iPhone"
+    echo "   3. Paste and visit the URL"
+    echo ""
+    echo "🚀 The Sauce Robot interface will load in your browser!"
+    echo ""
+    echo "📊 Management:"
+    echo "   Stop: docker-compose down"
+    echo "   Logs: docker-compose logs -f"
 else
     echo "❌ Application failed to start. Check logs:"
     docker-compose logs

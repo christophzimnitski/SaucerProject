@@ -47,6 +47,9 @@ target 'SauceRobotMobile' do
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
+  # Add GCDWebServer for embedded HTTP server
+  pod 'GCDWebServer', '~> 3.5'
+
   target 'SauceRobotMobileTests' do
     inherit! :complete
     # Pods for testing

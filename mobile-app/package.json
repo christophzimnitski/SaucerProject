@@ -6,10 +6,8 @@
   "scripts": {
     "start": "react-native start",
     "ios": "react-native run-ios",
-    "build-server": "cd ../backend && mvn clean package -DskipTests",
-    "copy-server-ios": "cp ../backend/target/*.jar ios/SauceRobotMobile/server.jar",
     "build-ipa": "cd ios && xcodebuild -workspace SauceRobotMobile.xcworkspace -scheme SauceRobotMobile -configuration Release -archivePath build/SauceRobotMobile.xcarchive archive",
-    "deploy-robot": "npm run build-server && npm run copy-server-ios && npm run build-ipa"
+    "deploy-robot": "npm run build-ipa"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^1.19.5",

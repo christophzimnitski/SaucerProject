@@ -1,13 +1,15 @@
 #import "SauceRobotServer.h"
 #import <React/RCTLog.h>
 #import <React/RCTUtils.h>
+#import <GCDWebServer/GCDWebServer.h>
+#import <GCDWebServer/GCDWebServerDataResponse.h>
+#import <sqlite3.h>
 
 @interface SauceRobotServer ()
-@property (nonatomic, strong) NSTask *serverTask;
-@property (nonatomic, strong) NSPipe *outputPipe;
-@property (nonatomic, strong) NSPipe *errorPipe;
+@property (nonatomic, strong) GCDWebServer *webServer;
 @property (nonatomic, assign) BOOL isServerRunning;
 @property (nonatomic, strong) NSString *serverUrl;
+@property (nonatomic, strong) NSString *databasePath;
 @end
 
 @implementation SauceRobotServer
@@ -21,30 +23,10 @@ RCT_EXPORT_MODULE();
 RCT_EXPORT_METHOD(copyServerFiles:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
   @try {
-    // Get the app bundle path
-    NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
-    NSString *serverJarPath = [bundlePath stringByAppendingPathComponent:@"server.jar"];
-
-    // Get documents directory
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *documentsDirectory = [paths objectAtIndex:0];
-    NSString *destPath = [documentsDirectory stringByAppendingPathComponent:@"server.jar"];
-
-    // Check if file exists in bundle
-    NSFileManager *fileManager = [NSFileManager defaultManager];
-    if (![fileManager fileExistsAtPath:serverJarPath]) {
-      reject(@"FILE_NOT_FOUND", @"Server JAR not found in app bundle", nil);
-      return;
-    }
-
-    // Copy the file
-    NSError *error;
-    if ([fileManager copyItemAtPath:serverJarPath toPath:destPath error:&error]) {
-      RCTLogInfo(@"Server JAR copied successfully to: %@", destPath);
-      resolve(@{@"success": @YES, @"path": destPath});
-    } else {
-      reject(@"COPY_FAILED", [error localizedDescription], error);
-    }
+    // Initialize database instead of copying JAR
+    [self initializeDatabase];
+    RCTLogInfo(@"Database initialized successfully");
+    resolve(@{@"success": @YES, @"message": @"Database initialized"});
   } @catch (NSException *exception) {
     reject(@"EXCEPTION", exception.reason, nil);
   }
@@ -58,57 +40,8 @@ RCT_EXPORT_METHOD(startServer:(RCTPromiseResolveBlock)resolve
       return;
     }
 
-    // Get documents directory
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *documentsDirectory = [paths objectAtIndex:0];
-    NSString *jarPath = [documentsDirectory stringByAppendingPathComponent:@"server.jar"];
-
-    // Check if JAR exists
-    NSFileManager *fileManager = [NSFileManager defaultManager];
-    if (![fileManager fileExistsAtPath:jarPath]) {
-      reject(@"JAR_NOT_FOUND", @"Server JAR not found. Please copy server files first.", nil);
-      return;
-    }
-
-    // Create data directory
-    NSString *dataDir = [documentsDirectory stringByAppendingPathComponent:@"data"];
-    if (![fileManager fileExistsAtPath:dataDir]) {
-      [fileManager createDirectoryAtPath:dataDir withIntermediateDirectories:YES attributes:nil error:nil];
-    }
-
-    // Find Java executable
-    NSString *javaPath = @"/usr/bin/java";
-    if (![fileManager fileExistsAtPath:javaPath]) {
-      // Try alternative locations
-      javaPath = @"/System/Library/Frameworks/JavaVM.framework/Versions/Current/Commands/java";
-      if (![fileManager fileExistsAtPath:javaPath]) {
-        reject(@"JAVA_NOT_FOUND", @"Java executable not found on device", nil);
-        return;
-      }
-    }
-
-    // Set up the task
-    self.serverTask = [[NSTask alloc] init];
-    [self.serverTask setLaunchPath:javaPath];
-
-    // Build arguments
-    NSString *port = @"8080";
-    NSArray *arguments = @[
-      @"-jar", jarPath,
-      @"--spring.profiles.active=mobile",
-      [NSString stringWithFormat:@"--server.port=%@", port],
-      [NSString stringWithFormat:@"--app.data.dir=%@", dataDir],
-      @"--logging.level.com.saucerobot=INFO",
-      [NSString stringWithFormat:@"--spring.datasource.url=jdbc:h2:file:%@/saucerobot;AUTO_SERVER=TRUE;DB_CLOSE_ON_EXIT=FALSE", dataDir]
-    ];
-
-    [self.serverTask setArguments:arguments];
-
-    // Set up output pipes
-    self.outputPipe = [NSPipe pipe];
-    self.errorPipe = [NSPipe pipe];
-    [self.serverTask setStandardOutput:self.outputPipe];
-    [self.serverTask setStandardError:self.errorPipe];
+    // Start the native iOS HTTP server
+    [self startWebServer];
 
     // Get local IP address
     NSString *localIP = [self getLocalIPAddress];
@@ -116,48 +49,13 @@ RCT_EXPORT_METHOD(startServer:(RCTPromiseResolveBlock)resolve
       localIP = @"localhost";
     }
 
+    NSString *port = @"8080";
     self.serverUrl = [NSString stringWithFormat:@"http://%@:%@", localIP, port];
 
-    // Handle output
-    [[self.outputPipe fileHandleForReading] setReadabilityHandler:^(NSFileHandle *handle) {
-      NSData *data = [handle availableData];
-      if (data.length > 0) {
-        NSString *output = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-        RCTLogInfo(@"SERVER OUTPUT: %@", output);
-        [self sendEventWithName:@"ServerOutput" body:@{@"output": output, @"type": @"stdout"}];
-      }
-    }];
+    RCTLogInfo(@"Native iOS server started at: %@", self.serverUrl);
+    [self sendEventWithName:@"ServerStatusChanged" body:@{@"running": @YES, @"url": self.serverUrl}];
 
-    [[self.errorPipe fileHandleForReading] setReadabilityHandler:^(NSFileHandle *handle) {
-      NSData *data = [handle availableData];
-      if (data.length > 0) {
-        NSString *error = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-        RCTLogError(@"SERVER ERROR: %@", error);
-        [self sendEventWithName:@"ServerOutput" body:@{@"output": error, @"type": @"stderr"}];
-      }
-    }];
-
-    // Set termination handler
-    [self.serverTask setTerminationHandler:^(NSTask *task) {
-      RCTLogInfo(@"Server task terminated with code: %d", [task terminationStatus]);
-      self.isServerRunning = NO;
-      [self sendEventWithName:@"ServerStatusChanged" body:@{@"running": @NO, @"exitCode": @([task terminationStatus])}];
-    }];
-
-    // Launch the task
-    NSError *launchError;
-    if ([self.serverTask launchAndReturnError:&launchError]) {
-      self.isServerRunning = YES;
-      RCTLogInfo(@"Server launched successfully at: %@", self.serverUrl);
-      [self sendEventWithName:@"ServerStatusChanged" body:@{@"running": @YES, @"url": self.serverUrl}];
-
-      // Wait a moment for server to start
-      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        resolve(@{@"success": @YES, @"serverUrl": self.serverUrl, @"message": @"Server started successfully"});
-      });
-    } else {
-      reject(@"LAUNCH_FAILED", [launchError localizedDescription], launchError);
-    }
+    resolve(@{@"success": @YES, @"serverUrl": self.serverUrl, @"message": @"Native iOS server started successfully"});
 
   } @catch (NSException *exception) {
     reject(@"EXCEPTION", exception.reason, nil);
@@ -167,10 +65,10 @@ RCT_EXPORT_METHOD(startServer:(RCTPromiseResolveBlock)resolve
 RCT_EXPORT_METHOD(stopServer:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
   @try {
-    if (self.serverTask && [self.serverTask isRunning]) {
-      [self.serverTask terminate];
+    if (self.webServer && self.webServer.isRunning) {
+      [self.webServer stop];
       self.isServerRunning = NO;
-      RCTLogInfo(@"Server stopped");
+      RCTLogInfo(@"Native server stopped");
       [self sendEventWithName:@"ServerStatusChanged" body:@{@"running": @NO}];
       resolve(@{@"success": @YES, @"message": @"Server stopped successfully"});
     } else {
@@ -187,6 +85,267 @@ RCT_EXPORT_METHOD(getServerStatus:(RCTPromiseResolveBlock)resolve
     @"isRunning": @(self.isServerRunning),
     @"serverUrl": self.serverUrl ?: [NSNull null]
   });
+}
+
+// Database and Server Implementation
+- (void)initializeDatabase {
+  // Get database path
+  NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+  NSString *documentsDirectory = [paths objectAtIndex:0];
+  self.databasePath = [documentsDirectory stringByAppendingPathComponent:@"saucerobot.db"];
+
+  // Create tables if they don't exist
+  sqlite3 *db;
+  if (sqlite3_open([self.databasePath UTF8String], &db) == SQLITE_OK) {
+    const char *createTableSQL = "CREATE TABLE IF NOT EXISTS recipe (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, ingredients TEXT NOT NULL)";
+    char *errorMessage = NULL;
+
+    if (sqlite3_exec(db, createTableSQL, NULL, NULL, &errorMessage) != SQLITE_OK) {
+      RCTLogError(@"Failed to create table: %s", errorMessage);
+      sqlite3_free(errorMessage);
+    }
+    sqlite3_close(db);
+  }
+}
+
+- (void)startWebServer {
+  self.webServer = [[GCDWebServer alloc] init];
+
+  // GET /api/recipes - Get all recipes
+  [self.webServer addHandlerForMethod:@"GET"
+                                 path:@"/api/recipes"
+                                 requestClass:[GCDWebServerRequest class]
+                            processBlock:^GCDWebServerResponse *(GCDWebServerRequest *request) {
+    return [self handleGetRecipes:request];
+  }];
+
+  // POST /api/recipes - Create new recipe
+  [self.webServer addHandlerForMethod:@"POST"
+                                 path:@"/api/recipes"
+                                 requestClass:[GCDWebServerDataRequest class]
+                            processBlock:^GCDWebServerResponse *(GCDWebServerRequest *request) {
+    return [self handleCreateRecipe:(GCDWebServerDataRequest *)request];
+  }];
+
+  // PUT /api/recipes/{id} - Update recipe
+  [self.webServer addHandlerForMethod:@"PUT"
+                                 pathRegex:@"/api/recipes/([0-9]+)"
+                                 requestClass:[GCDWebServerDataRequest class]
+                            processBlock:^GCDWebServerResponse *(GCDWebServerRequest *request) {
+    return [self handleUpdateRecipe:(GCDWebServerDataRequest *)request];
+  }];
+
+  // POST /api/recipes/start-sauce/{id} - Start sauce
+  [self.webServer addHandlerForMethod:@"POST"
+                                 pathRegex:@"/api/recipes/start-sauce/([0-9]+)"
+                                 requestClass:[GCDWebServerRequest class]
+                            processBlock:^GCDWebServerResponse *(GCDWebServerRequest *request) {
+    return [self handleStartSauce:request];
+  }];
+
+  // Start server on port 8080
+  NSError *error;
+  if ([self.webServer startWithPort:8080 bonjourName:nil error:&error]) {
+    self.isServerRunning = YES;
+    RCTLogInfo(@"GCDWebServer started on port 8080");
+  } else {
+    RCTLogError(@"Failed to start GCDWebServer: %@", error);
+  }
+}
+
+- (GCDWebServerResponse *)handleGetRecipes:(GCDWebServerRequest *)request {
+  NSMutableArray *recipes = [NSMutableArray array];
+
+  sqlite3 *db;
+  if (sqlite3_open([self.databasePath UTF8String], &db) == SQLITE_OK) {
+    sqlite3_stmt *statement;
+    const char *query = "SELECT id, name, ingredients FROM recipe";
+
+    if (sqlite3_prepare_v2(db, query, -1, &statement, NULL) == SQLITE_OK) {
+      while (sqlite3_step(statement) == SQLITE_ROW) {
+        int id = sqlite3_column_int(statement, 0);
+        const char *name = (const char *)sqlite3_column_text(statement, 1);
+        const char *ingredientsJson = (const char *)sqlite3_column_text(statement, 2);
+
+        NSError *jsonError;
+        NSArray *ingredients = [NSJSONSerialization JSONObjectWithData:[NSData dataWithBytes:ingredientsJson length:strlen(ingredientsJson)]
+                                                               options:0
+                                                                 error:&jsonError];
+
+        NSDictionary *recipe = @{
+          @"id": @(id),
+          @"name": name ? [NSString stringWithUTF8String:name] : @"",
+          @"ingredients": ingredients ?: @[]
+        };
+        [recipes addObject:recipe];
+      }
+      sqlite3_finalize(statement);
+    }
+    sqlite3_close(db);
+  }
+
+  NSError *error;
+  NSData *jsonData = [NSJSONSerialization dataWithJSONObject:recipes options:0 error:&error];
+  return [[GCDWebServerDataResponse alloc] initWithData:jsonData contentType:@"application/json"];
+}
+
+- (GCDWebServerResponse *)handleCreateRecipe:(GCDWebServerDataRequest *)request {
+  NSError *jsonError;
+  NSDictionary *recipeData = [NSJSONSerialization JSONObjectWithData:request.data options:0 error:&jsonError];
+
+  if (!recipeData) {
+    return [[GCDWebServerResponse alloc] initWithStatusCode:400];
+  }
+
+  NSString *name = recipeData[@"name"];
+  NSArray *ingredients = recipeData[@"ingredients"];
+
+  NSError *ingredientsError;
+  NSData *ingredientsJsonData = [NSJSONSerialization dataWithJSONObject:ingredients options:0 error:&ingredientsError];
+
+  if (!ingredientsJsonData) {
+    return [[GCDWebServerResponse alloc] initWithStatusCode:400];
+  }
+
+  NSString *ingredientsJson = [[NSString alloc] initWithData:ingredientsJsonData encoding:NSUTF8StringEncoding];
+
+  sqlite3 *db;
+  NSDictionary *result = nil;
+
+  if (sqlite3_open([self.databasePath UTF8String], &db) == SQLITE_OK) {
+    sqlite3_stmt *statement;
+    const char *insertSQL = "INSERT INTO recipe (name, ingredients) VALUES (?, ?)";
+
+    if (sqlite3_prepare_v2(db, insertSQL, -1, &statement, NULL) == SQLITE_OK) {
+      sqlite3_bind_text(statement, 1, [name UTF8String], -1, SQLITE_TRANSIENT);
+      sqlite3_bind_text(statement, 2, [ingredientsJson UTF8String], -1, SQLITE_TRANSIENT);
+
+      if (sqlite3_step(statement) == SQLITE_DONE) {
+        long long lastId = sqlite3_last_insert_rowid(db);
+        result = @{
+          @"id": @(lastId),
+          @"name": name,
+          @"ingredients": ingredients
+        };
+      }
+      sqlite3_finalize(statement);
+    }
+    sqlite3_close(db);
+  }
+
+  if (result) {
+    NSError *error;
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:result options:0 error:&error];
+    return [[GCDWebServerDataResponse alloc] initWithData:jsonData contentType:@"application/json"];
+  } else {
+    return [[GCDWebServerResponse alloc] initWithStatusCode:500];
+  }
+}
+
+- (GCDWebServerResponse *)handleUpdateRecipe:(GCDWebServerDataRequest *)request {
+  NSError *jsonError;
+  NSDictionary *recipeData = [NSJSONSerialization JSONObjectWithData:request.data options:0 error:&jsonError];
+
+  if (!recipeData) {
+    return [[GCDWebServerResponse alloc] initWithStatusCode:400];
+  }
+
+  // Extract ID from URL regex match
+  NSString *path = request.path;
+  NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"/api/recipes/([0-9]+)" options:0 error:nil];
+  NSTextCheckingResult *match = [regex firstMatchInString:path options:0 range:NSMakeRange(0, path.length)];
+
+  if (!match || match.numberOfRanges < 2) {
+    return [[GCDWebServerResponse alloc] initWithStatusCode:400];
+  }
+
+  NSString *idString = [path substringWithRange:[match rangeAtIndex:1]];
+  NSInteger recipeId = [idString integerValue];
+
+  NSString *name = recipeData[@"name"];
+  NSArray *ingredients = recipeData[@"ingredients"];
+
+  NSError *ingredientsError;
+  NSData *ingredientsJsonData = [NSJSONSerialization dataWithJSONObject:ingredients options:0 error:&ingredientsError];
+
+  if (!ingredientsJsonData) {
+    return [[GCDWebServerResponse alloc] initWithStatusCode:400];
+  }
+
+  NSString *ingredientsJson = [[NSString alloc] initWithData:ingredientsJsonData encoding:NSUTF8StringEncoding];
+
+  sqlite3 *db;
+  NSDictionary *result = nil;
+
+  if (sqlite3_open([self.databasePath UTF8String], &db) == SQLITE_OK) {
+    sqlite3_stmt *statement;
+    const char *updateSQL = "UPDATE recipe SET name = ?, ingredients = ? WHERE id = ?";
+
+    if (sqlite3_prepare_v2(db, updateSQL, -1, &statement, NULL) == SQLITE_OK) {
+      sqlite3_bind_text(statement, 1, [name UTF8String], -1, SQLITE_TRANSIENT);
+      sqlite3_bind_text(statement, 2, [ingredientsJson UTF8String], -1, SQLITE_TRANSIENT);
+      sqlite3_bind_int(statement, 3, (int)recipeId);
+
+      if (sqlite3_step(statement) == SQLITE_DONE) {
+        result = @{
+          @"id": @(recipeId),
+          @"name": name,
+          @"ingredients": ingredients
+        };
+      }
+      sqlite3_finalize(statement);
+    }
+    sqlite3_close(db);
+  }
+
+  if (result) {
+    NSError *error;
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:result options:0 error:&error];
+    return [[GCDWebServerDataResponse alloc] initWithData:jsonData contentType:@"application/json"];
+  } else {
+    return [[GCDWebServerResponse alloc] initWithStatusCode:500];
+  }
+}
+
+- (GCDWebServerResponse *)handleStartSauce:(GCDWebServerRequest *)request {
+  // Extract ID from URL regex match
+  NSString *path = request.path;
+  NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"/api/recipes/start-sauce/([0-9]+)" options:0 error:nil];
+  NSTextCheckingResult *match = [regex firstMatchInString:path options:0 range:NSMakeRange(0, path.length)];
+
+  if (!match || match.numberOfRanges < 2) {
+    return [[GCDWebServerResponse alloc] initWithStatusCode:400];
+  }
+
+  NSString *idString = [path substringWithRange:[match rangeAtIndex:1]];
+  NSInteger recipeId = [idString integerValue];
+
+  // Get recipe name from database
+  sqlite3 *db;
+  NSString *recipeName = nil;
+
+  if (sqlite3_open([self.databasePath UTF8String], &db) == SQLITE_OK) {
+    sqlite3_stmt *statement;
+    const char *query = "SELECT name FROM recipe WHERE id = ?";
+
+    if (sqlite3_prepare_v2(db, query, -1, &statement, NULL) == SQLITE_OK) {
+      sqlite3_bind_int(statement, 1, (int)recipeId);
+
+      if (sqlite3_step(statement) == SQLITE_ROW) {
+        const char *name = (const char *)sqlite3_column_text(statement, 0);
+        recipeName = name ? [NSString stringWithUTF8String:name] : @"Unknown Recipe";
+      }
+      sqlite3_finalize(statement);
+    }
+    sqlite3_close(db);
+  }
+
+  NSString *message = [NSString stringWithFormat:@"%@ is being made...", recipeName ?: @"Recipe"];
+  NSDictionary *response = @{@"message": message};
+
+  NSError *error;
+  NSData *jsonData = [NSJSONSerialization dataWithJSONObject:response options:0 error:&error];
+  return [[GCDWebServerDataResponse alloc] initWithData:jsonData contentType:@"application/json"];
 }
 
 - (NSString *)getLocalIPAddress {

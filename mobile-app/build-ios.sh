@@ -14,16 +14,9 @@ if [ ! -f "package.json" ] || [ ! -d "ios" ]; then
     exit 1
 fi
 
-# Build the Spring Boot server
-echo "🏗️  Building Spring Boot server..."
-cd ../backend
-mvn clean package -DskipTests
-cd ../mobile-app
-
-# Copy server JAR to iOS assets
-echo "📦 Copying server to iOS assets..."
-mkdir -p ios/SauceRobotMobile
-cp ../backend/target/*.jar ios/SauceRobotMobile/server.jar
+# Build the Spring Boot server (for reference, not needed for iOS native implementation)
+echo "🏗️  Note: Using native iOS implementation instead of Spring Boot JAR"
+echo "    The app includes a native HTTP server and SQLite database"
 
 # Install dependencies
 echo "📦 Installing dependencies..."
