@@ -1,31 +1,24 @@
 #import "AppDelegate.h"
-
-#import <React/RCTBundleURLProvider.h>
+#import "SauceRobotServer.h"
 
 @implementation AppDelegate
 
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
+- (NSString *)moduleName
 {
-  self.moduleName = @"SauceRobotMobile";
-  // You can add your custom initial props in the dictionary below.
-  // They will be passed down to the ViewController used by React Native.
-  self.initialProps = @{};
-
-  return [super application:application didFinishLaunchingWithOptions:launchOptions];
+  return @"sauce-robot-mobile";
 }
 
 - (NSURL *)sourceURLForBridge:(RCTBridge *)bridge
 {
-  return [self getBundleURL];
+  return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];
 }
 
-- (NSURL *)getBundleURL
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
-#if DEBUG
-  return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@"index"];
-#else
-  return [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];
-#endif
+  // Initialize the SauceRobotServer when app starts
+  [[SauceRobotServer alloc] init];
+
+  return [super application:application didFinishLaunchingWithOptions:launchOptions];
 }
 
 @end

@@ -18,8 +18,14 @@ fi
 echo "🏗️  Note: Using native iOS implementation instead of Spring Boot JAR"
 echo "    The app includes a native HTTP server and SQLite database"
 
+# Clean any previous builds
+echo "🧹 Cleaning previous builds..."
+cd ios
+rm -rf Pods Podfile.lock build
+cd ..
+
 # Install dependencies
-echo "📦 Installing dependencies..."
+echo "📦 Installing JavaScript dependencies..."
 npm install
 
 # Install iOS pods

@@ -1,0 +1,13 @@
+#!/bin/bash
+# Fake node script to handle React Native CLI detection
+
+if [[ "$*" == *"require('@react-native-community/cli').bin"* ]]; then
+    echo '{"bin": "node_modules/.bin/react-native"}'
+    exit 0
+elif [[ "$*" == *"require('react-native/cli').bin"* ]]; then
+    echo '{"bin": "node_modules/.bin/react-native"}'
+    exit 0
+else
+    # For other commands, try to run real node
+    exec /opt/homebrew/bin/node "$@"
+fi

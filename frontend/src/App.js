@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import './App.css';
 
-const API_BASE_URL = 'http://192.168.1.220:8080/api/recipes';
+const API_BASE_URL = '/api/recipes';
 
 function App() {
     const [recipes, setRecipes] = useState([]);

@@ -10,6 +10,11 @@ A recipe management application for creating and managing sauce recipes, designe
 ```bash
 # On your Mac computer:
 cd mobile-app
+
+# If you have build errors, run this first:
+./clean-fix.sh
+
+# Then build:
 ./build-ios.sh
 ```
 The Sauce Robot will run **entirely on your iPhone** with:

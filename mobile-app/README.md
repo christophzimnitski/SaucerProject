@@ -40,10 +40,8 @@ The app contains:
 # 1. Install dependencies
 npm install
 
-# 2. Install iOS pods
-cd ios
-pod install
-cd ..
+# 2. Fix any issues and install iOS pods
+./clean-fix.sh
 
 # 3. Build and run
 npm run ios
