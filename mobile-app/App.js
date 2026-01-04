@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator,
-  TextInput, ScrollView, FlatList, Modal, KeyboardAvoidingView, Platform
+  TextInput, ScrollView, FlatList, Modal, KeyboardAvoidingView, Platform, Switch
 } from 'react-native';
 import { NativeModules } from 'react-native';
 
@@ -23,6 +23,10 @@ const App = () => {
   const [formIngredients, setFormIngredients] = useState([]);
   const [currentIngredient, setCurrentIngredient] = useState('');
 
+  // New features state
+  const [keepScreenOn, setKeepScreenOn] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   useEffect(() => {
     initializeApp();
   }, []);
@@ -30,6 +34,7 @@ const App = () => {
   useEffect(() => {
     if (serverRunning) {
       fetchRecipes();
+      initializeScreenSetting();
     }
   }, [serverRunning]);
 
@@ -86,6 +91,36 @@ const App = () => {
       Alert.alert('Error', 'Failed to restart server');
     }
     setLoading(false);
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchRecipes();
+      Alert.alert('Success', 'Recipes refreshed!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to refresh recipes');
+    }
+    setIsRefreshing(false);
+  };
+
+  const handleScreenToggle = async (value) => {
+    try {
+      await SauceRobotServer.setKeepScreenOn(value);
+      setKeepScreenOn(value);
+      Alert.alert('Success', `Screen will ${value ? 'stay on' : 'turn off normally'}`);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to change screen setting');
+    }
+  };
+
+  const initializeScreenSetting = async () => {
+    try {
+      const result = await SauceRobotServer.getKeepScreenOn();
+      setKeepScreenOn(result.keepScreenOn);
+    } catch (error) {
+      console.log('Could not get screen setting:', error);
+    }
   };
 
   const fetchRecipes = async () => {
@@ -320,6 +355,28 @@ const App = () => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>THE SAUCER</Text>
         <Text style={styles.debugText}>Recipes loaded: {recipes.length}</Text>
+
+        <View style={styles.headerControls}>
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={handleRefresh}
+            disabled={isRefreshing}
+          >
+            <Text style={styles.refreshButtonText}>
+              {isRefreshing ? '⟳' : '🔄'}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.screenToggle}>
+            <Text style={styles.screenToggleText}>Keep Screen On</Text>
+            <Switch
+              value={keepScreenOn}
+              onValueChange={handleScreenToggle}
+              trackColor={{ false: '#767577', true: '#ff0066' }}
+              thumbColor={keepScreenOn ? '#ffffff' : '#f4f3f4'}
+            />
+          </View>
+        </View>
       </View>
 
       <FlatList
@@ -366,6 +423,41 @@ const styles = StyleSheet.create({
     color: '#cccccc',
     textAlign: 'center',
     marginTop: 8,
+  },
+  headerControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    paddingHorizontal: 16,
+    gap: 20, // Add space between the buttons
+  },
+  refreshButton: {
+    backgroundColor: '#ff6b35',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  refreshButtonText: {
+    fontSize: 20,
+    color: 'white',
+  },
+  screenToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    paddingVertical: 12,
+    paddingHorizontal: 16, // More horizontal padding for the switch
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  screenToggleText: {
+    fontSize: 14,
+    color: '#cccccc',
+    marginRight: 8,
   },
   recipesGrid: {
     flex: 1,
@@ -640,14 +732,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   refreshButton: {
-    backgroundColor: '#ff6b35',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: '#1a1a1a', // Match screen toggle background
+    paddingHorizontal: 20, // Increased from 16
+    paddingVertical: 16, // Increased from 12
+    borderRadius: 20, // Match screen toggle borderRadius
+    borderWidth: 1,
+    borderColor: '#333',
+    minWidth: 60, // Add minimum width for consistency
   },
   refreshButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: 'bold',
   },
 });

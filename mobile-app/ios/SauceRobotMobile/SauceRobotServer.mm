@@ -89,6 +89,32 @@ RCT_EXPORT_METHOD(stopServer:(RCTPromiseResolveBlock)resolve
   }
 }
 
+RCT_EXPORT_METHOD(setKeepScreenOn:(BOOL)keepOn
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [UIApplication sharedApplication].idleTimerDisabled = keepOn;
+      RCTLogInfo(@"Screen keep-on set to: %@", keepOn ? @"ON" : @"OFF");
+      resolve(@{@"success": @YES, @"keepScreenOn": @(keepOn)});
+    });
+  } @catch (NSException *exception) {
+    reject(@"EXCEPTION", exception.reason, nil);
+  }
+}
+
+RCT_EXPORT_METHOD(getKeepScreenOn:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      BOOL isDisabled = [UIApplication sharedApplication].idleTimerDisabled;
+      resolve(@{@"keepScreenOn": @(isDisabled)});
+    });
+  } @catch (NSException *exception) {
+    reject(@"EXCEPTION", exception.reason, nil);
+  }
+}
+
 RCT_EXPORT_METHOD(getServerStatus:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
   resolve(@{
@@ -104,6 +130,7 @@ RCT_EXPORT_METHOD(getServerStatus:(RCTPromiseResolveBlock)resolve
 
   // Initialize recipes array if it doesn't exist
   if (![defaults objectForKey:@"recipes"]) {
+    RCTLogInfo(@"Setting up default recipes...");
     // Add some default recipes to match the original app
     NSArray *defaultRecipes = @[
       @{@"id": @1, @"name": @"Classic Tomato Sauce", @"ingredients": @[@"Tomatoes", @"Garlic", @"Basil", @"Olive Oil", @"Salt"]},
@@ -113,6 +140,10 @@ RCT_EXPORT_METHOD(getServerStatus:(RCTPromiseResolveBlock)resolve
     [defaults setObject:defaultRecipes forKey:@"recipes"];
     [defaults setInteger:4 forKey:@"nextRecipeId"]; // Next ID after defaults
     [defaults synchronize];
+    RCTLogInfo(@"Default recipes set: %lu recipes", (unsigned long)defaultRecipes.count);
+  } else {
+    NSArray *existingRecipes = [defaults objectForKey:@"recipes"];
+    RCTLogInfo(@"Existing recipes found: %lu recipes", (unsigned long)existingRecipes.count);
   }
 
   RCTLogInfo(@"Data storage initialized successfully");
@@ -221,11 +252,91 @@ RCT_EXPORT_METHOD(getServerStatus:(RCTPromiseResolveBlock)resolve
 }
 
 - (GCDWebServerResponse *)handleGetRecipes:(GCDWebServerRequest *)request {
+  RCTLogInfo(@"🔍 Handling GET /api/recipes request");
   NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
   NSArray *recipes = [defaults objectForKey:@"recipes"];
 
+  // Define default recipes
+  NSArray *defaultRecipes = @[
+    @{@"id": @1, @"name": @"Classic Tomato Sauce", @"ingredients": @[@"Tomatoes", @"Garlic", @"Basil", @"Olive Oil", @"Salt"]},
+    @{@"id": @2, @"name": @"Pesto Sauce", @"ingredients": @[@"Basil", @"Pine Nuts", @"Parmesan Cheese", @"Garlic", @"Olive Oil"]},
+    @{@"id": @3, @"name": @"Alfredo Sauce", @"ingredients": @[@"Heavy Cream", @"Butter", @"Parmesan Cheese", @"Garlic", @"Black Pepper"]}
+  ];
+
+  // If no recipes exist, initialize with defaults
+  if (!recipes || recipes.count == 0) {
+    RCTLogInfo(@"⚠️ No recipes found, initializing defaults...");
+    [defaults setObject:defaultRecipes forKey:@"recipes"];
+    [defaults setInteger:4 forKey:@"nextRecipeId"];
+    [defaults synchronize];
+    recipes = defaultRecipes;
+    RCTLogInfo(@"✅ Initialized with %lu default recipes", (unsigned long)recipes.count);
+  } else {
+    // Check if we have the actual default recipes by name - if not, merge them in
+    BOOL hasClassicTomato = NO;
+    BOOL hasPesto = NO;
+    BOOL hasAlfredo = NO;
+
+    for (NSDictionary *recipe in recipes) {
+      NSString *recipeName = recipe[@"name"];
+      if ([recipeName isEqualToString:@"Classic Tomato Sauce"]) {
+        hasClassicTomato = YES;
+      } else if ([recipeName isEqualToString:@"Pesto Sauce"]) {
+        hasPesto = YES;
+      } else if ([recipeName isEqualToString:@"Alfredo Sauce"]) {
+        hasAlfredo = YES;
+      }
+    }
+
+    BOOL hasAllDefaults = hasClassicTomato && hasPesto && hasAlfredo;
+
+    if (!hasAllDefaults) {
+      RCTLogInfo(@"📋 Missing some default recipes, merging them in...");
+      NSMutableArray *mergedRecipes = [NSMutableArray arrayWithArray:recipes];
+
+      // Find the highest existing ID to avoid conflicts
+      NSInteger maxId = 0;
+      for (NSDictionary *recipe in recipes) {
+        NSNumber *recipeId = recipe[@"id"];
+        if ([recipeId integerValue] > maxId) {
+          maxId = [recipeId integerValue];
+        }
+      }
+
+      // Add missing defaults with unique IDs
+      if (!hasClassicTomato) {
+        NSMutableDictionary *classicTomato = [defaultRecipes[0] mutableCopy];
+        classicTomato[@"id"] = @(++maxId);
+        [mergedRecipes addObject:classicTomato];
+      }
+      if (!hasPesto) {
+        NSMutableDictionary *pesto = [defaultRecipes[1] mutableCopy];
+        pesto[@"id"] = @(++maxId);
+        [mergedRecipes addObject:pesto];
+      }
+      if (!hasAlfredo) {
+        NSMutableDictionary *alfredo = [defaultRecipes[2] mutableCopy];
+        alfredo[@"id"] = @(++maxId);
+        [mergedRecipes addObject:alfredo];
+      }
+
+      [defaults setObject:mergedRecipes forKey:@"recipes"];
+      [defaults synchronize];
+      recipes = mergedRecipes;
+      RCTLogInfo(@"✅ Added missing defaults with unique IDs: %lu total recipes", (unsigned long)recipes.count);
+    } else {
+      RCTLogInfo(@"📋 All default recipes present: %lu recipes", (unsigned long)recipes.count);
+    }
+  }
+
+  RCTLogInfo(@"📋 Returning %lu recipes", (unsigned long)recipes.count);
+  if (recipes.count > 0) {
+    RCTLogInfo(@"📄 First recipe: %@", recipes[0]);
+  }
+
   NSError *error;
   NSData *jsonData = [NSJSONSerialization dataWithJSONObject:recipes ?: @[] options:0 error:&error];
+  RCTLogInfo(@"📤 Returning JSON response with %lu bytes", (unsigned long)jsonData.length);
   return [[GCDWebServerDataResponse alloc] initWithData:jsonData contentType:@"application/json"];
 }
 
