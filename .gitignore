@@ -65,3 +65,9 @@ yarn-error.log*
 # Archives
 *.zip
 
+
+# iOS (CocoaPods output and per-user Xcode state)
+mobile-app/ios/Pods/
+mobile-app/ios/build/
+mobile-app/ios/.xcode.env.local
+xcuserdata/
